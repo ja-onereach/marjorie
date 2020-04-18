@@ -73,8 +73,9 @@ class MainDialog extends ComponentDialog {
      */
     async actStep(stepContext) {
         // CHECK BYPASS ON INITIAL UTTERANCE
-        const doBypass = or.bypass(stepContext.context._activity, 'actStep');
-        if (doBypass) return;
+        const doBypass = await or.bypass(stepContext.context._activity, 'actStep');
+        console.log('doBypass returned', doBypass);
+        if (doBypass) return await stepContext.endDialog();
 
         const bookingDetails = {};
 

@@ -21,7 +21,8 @@
         "botbuilder-ai": "~4.6.1",
         "botbuilder-dialogs": "~4.6.1",
         "dotenv": "^8.2.0",
-        "restify": "~8.4.0"
+        "restify": "~8.4.0",
+        "request-promise": "^4.2.5"
     },
     "devDependencies": {
         "eslint": "^6.6.0",
