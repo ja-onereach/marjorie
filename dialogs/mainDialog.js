@@ -72,8 +72,9 @@ class MainDialog extends ComponentDialog {
      * Then, it hands off to the bookingDialog child dialog to collect any remaining details.
      */
     async actStep(stepContext) {
-        // BYPASS INITIAL UTTERANCE
-        or.bypass(stepContext.context._activity, 'actStep');
+        // CHECK BYPASS ON INITIAL UTTERANCE
+        const doBypass = or.bypass(stepContext.context._activity, 'actStep');
+        if (doBypass) return;
 
         const bookingDetails = {};
 

@@ -27,6 +27,7 @@ module.exports = {
                 return false;
             }
             console.log('request response', { status: response.statusCode, body });
+            return (body && body.bypass);
         });
     }
 };
