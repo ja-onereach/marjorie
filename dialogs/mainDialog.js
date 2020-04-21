@@ -45,10 +45,14 @@ class MainDialog extends ComponentDialog {
         const dialogContext = await dialogSet.createContext(turnContext);
         // CHECK BYPASS ON INITIAL UTTERANCE
         console.log('TURN CONTEXT', turnContext);
-        const doBypass = await or.bypass(turnContext._activity, 'actStep');
-        console.log('doBypass returned', doBypass);
+        let doBypass = false;
+        if (_.get(turnContext, '_activity.channelId') !== 'directline') {
+            doBypass = await or.bypass(turnContext._activity, 'actStep');
+            console.log('doBypass returned', doBypass);
+        }
         if (!doBypass) {
-            // UNIVERSAL OVERRIDE
+            // RESET HANDLER
+            console.log('turnContext._activity', turnContext._activity);
             const results = (_.get(turnContext, '_activity.text') === 'RESET') ? { status: DialogTurnStatus.empty } : await dialogContext.continueDialog();
             if (results.status === DialogTurnStatus.empty) {
                 await dialogContext.beginDialog(this.id);
