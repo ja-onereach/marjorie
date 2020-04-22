@@ -6,7 +6,8 @@ const uuid = require('uuid/v4');
 const _ = require('lodash');
 
 class OneReach {
-    constructor(dialogState, callbackUrl) {
+    constructor(dialogState, callbackUrl, dialog) {
+        this._dialog = dialog;
         this._state = dialogState;
         this._callbackUrl = callbackUrl;
         this._callbacks = dialogState.createProperty('OneReachCallbacks');
@@ -33,7 +34,7 @@ class OneReach {
     }
 
     async bypass(context, next, type, tags, endYieldFunc) {
-        console.log('or.bypass', { type, context });
+        // console.log('or.bypass', { type, context });
         const req = (body) => {
             return request.post({
                 uri: this._adapterUrl,
@@ -76,12 +77,10 @@ class OneReach {
                     sentMessageDetails = await context.sendActivity(lastActivity);
                     this.returnMessageDetails(sentMessageDetails, yieldResp.msgCallbackUrl);
                     if (yieldResp.resetConversation) {
-                        console.log('directed to reset conversation');
-
-                        // TODO: Figure out how to actually restart the conversation
-                        return context.replaceDialog('mainWaterfallDialog', { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you?' });
+                        const dialogState = this._state.createProperty('OneReachState2');
+                        return await this._dialog.run(context, dialogState, type="reset");
                     } else {
-                        return endYieldFunc(); // run the original function where the bypass was put in, in dialogBot
+                        return await next()
                     }
                 }
                 return endYieldFunc();
