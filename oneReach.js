@@ -14,12 +14,13 @@ class OneReach {
     }
 
     async pushCallback(id, ctx, nxt) {
-        const calls = await this._callbacks.get() || [];
+        let calls = await this._callbacks.get() || [];
         calls.push({
             id,
             context: ctx,
             next: nxt
         });
+        this._callbacks.set(calls);
     }
 
     async dispatch(payload, label) { // send any event to a webhook flow
@@ -62,11 +63,11 @@ class OneReach {
                     bsCallback: { id: callbackId, url: this._serverUrl },
                     tags
                 });
-                if (yieldResp && yieldResp.doYield) { // OR bot is taking control
+                if (yieldResp && yieldResp.doYield) { // OR bot is taking control, oriented toward Request Input in conversation flows
                     this.pushCallback(callbackId, context, next);
                     return this.yieldResponse(yieldResp);
-                } else if (yieldResp && yieldResp.newActivities) {
-                    // handle new bot message from OR bot
+                } else if (yieldResp && yieldResp.newActivities) { // oriented to Send Message on its own
+                    // handle new bot message(s) from OR bot
                     const lastActivity = yieldResp.newActivities.pop();
                     var sentMessageDetails;
                     _.forEach(yieldResp.newActivities, async activity => {
@@ -80,7 +81,7 @@ class OneReach {
                         // TODO: Figure out how to actually restart the conversation
                         return context.replaceDialog('mainWaterfallDialog', { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you?' });
                     } else {
-                        return endYieldFunc();
+                        return endYieldFunc(); // run the original function where the bypass was put in, in dialogBot
                     }
                 }
                 return endYieldFunc();
