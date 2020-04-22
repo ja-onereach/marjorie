@@ -8,10 +8,12 @@ const _ = require('lodash');
 class OneReach {
     constructor(dialogState, callbackUrl, dialog) {
         this._dialog = dialog;
+        this._dialog.or = this;
         this._state = dialogState;
         this._callbackUrl = callbackUrl;
         this._callbacks = dialogState.createProperty('OneReachCallbacks');
         this._adapterUrl = 'https://sdkapi.staging.api.onereach.ai/http/ae7f9e31-b377-4144-9fd5-98f7952db87d/in/msbot/event/0418f4d4-1a2f-4345-a251-bb8b2d44fece';
+        this.nluFLowUrl = 'https://new-shared.sdkapi.staging.api.onereach.ai/http/ae7f9e31-b377-4144-9fd5-98f7952db87d/marjorie-nlu-failover'; 
     }
 
     async pushCallback(id, ctx, nxt) {
@@ -35,9 +37,9 @@ class OneReach {
 
     async bypass(context, next, type, tags, endYieldFunc) {
         // console.log('or.bypass', { type, context });
-        const req = (body) => {
+        const req = (body, uri) => {
             return request.post({
-                uri: this._adapterUrl,
+                uri: uri || this._adapterUrl,
                 body,
                 headers: {
                     orteamsbypass: true,
@@ -91,6 +93,38 @@ class OneReach {
                 break;
             case 'requestData': // Request a JSON response
                 //
+                break;
+            case 'nlu-failover':
+                try {
+                    const nluResp = await req({
+                        type,
+                        activity: _.get(context, '_activity'),
+                        bsCallback: { id: callbackId, url: this._serverUrl },
+                        tags
+                    }, this.nluFLowUrl);
+                    if (nluResp && nluResp.newActivities) { // oriented to Send Message on its own
+                        // handle new bot message(s) from OR bot
+                        const lastActivity = nluResp.newActivities.pop();
+                        var sentMessageDetails;
+                        _.forEach(nluResp.newActivities, async activity => {
+                            await context.sendActivity(activity);
+                        });
+                        sentMessageDetails = await context.sendActivity(lastActivity);
+                        this.returnMessageDetails(sentMessageDetails, nluResp.msgCallbackUrl);
+                        if (nluResp.resetConversation) {
+                            const dialogState = this._state.createProperty('OneReachState');
+                            return await this._dialog.run(context, dialogState, type="reset");
+                        } else {
+                            return await next()
+                        }
+                     } else {
+                        return await endYieldFunc();
+                     }
+
+                } catch (e) {
+                    console.log('Error when making NLU-failover request', e);
+                    return await endYieldFunc();
+                }
                 break;
             default:
                 return endYieldFunc ? endYieldFunc() : next();
