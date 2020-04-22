@@ -73,9 +73,15 @@ class OneReach {
                         await context.sendActivity(activity);
                     });
                     sentMessageDetails = await context.sendActivity(lastActivity);
-                    console.log('TYPE', typeof sentMessageDetails);
                     this.returnMessageDetails(sentMessageDetails, yieldResp.msgCallbackUrl);
-                    return endYieldFunc();
+                    if (yieldResp.resetConversation) {
+                        console.log('directed to reset conversation');
+
+                        // TODO: Figure out how to actually restart the conversation
+                        return context.replaceDialog('mainWaterfallDialog', { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you?' });
+                    } else {
+                        return endYieldFunc();
+                    }
                 }
                 return endYieldFunc();
                 // eslint-disable-next-line no-unreachable
