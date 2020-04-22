@@ -120,7 +120,7 @@ class MainDialog extends ComponentDialog {
 
         default: {
             // Catch all for unhandled intents
-            this.or.bypass(stepContext.context, stepContext.next, "nlu-failover", ["mainDialog.actStep"], async () => {
+            await this.or.bypass(stepContext.context, stepContext.next, "nlu-failover", ["mainDialog.actStep"], async () => {
                 const didntUnderstandMessageText = `Sorry, I didn't get that. Please try asking in a different way (intent was ${ LuisRecognizer.topIntent(luisResult) })`;
                 await stepContext.context.sendActivity(didntUnderstandMessageText, didntUnderstandMessageText, InputHints.IgnoringInput);
             })

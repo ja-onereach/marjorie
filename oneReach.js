@@ -79,7 +79,7 @@ class OneReach {
                     sentMessageDetails = await context.sendActivity(lastActivity);
                     this.returnMessageDetails(sentMessageDetails, yieldResp.msgCallbackUrl);
                     if (yieldResp.resetConversation) {
-                        const dialogState = this._state.createProperty('OneReachState2');
+                        const dialogState = this._state.createProperty('OneReachState');
                         return await this._dialog.run(context, dialogState, type="reset");
                     } else {
                         return await next()
@@ -106,10 +106,14 @@ class OneReach {
                         // handle new bot message(s) from OR bot
                         const lastActivity = nluResp.newActivities.pop();
                         var sentMessageDetails;
-                        _.forEach(nluResp.newActivities, async activity => {
-                            await context.sendActivity(activity);
-                        });
-                        sentMessageDetails = await context.sendActivity(lastActivity);
+                        try {
+                            _.forEach(nluResp.newActivities, async activity => {
+                                await context.sendActivity(activity);
+                            });
+                            sentMessageDetails = await context.sendActivity(lastActivity);
+                        } catch (e) {
+                            sentMessageDetails = await context.sendActivity(lastActivity.text || 'no result');
+                        }
                         this.returnMessageDetails(sentMessageDetails, nluResp.msgCallbackUrl);
                         if (nluResp.resetConversation) {
                             const dialogState = this._state.createProperty('OneReachState');
