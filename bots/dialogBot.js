@@ -28,13 +28,11 @@ class DialogBot extends ActivityHandler {
         });
 
         this.onMessage(async (context, next) => {
-            await or.bypass(context, next, 'tryYield', ['dialogBot.onMessage'], async (type, payload) => {
-                // Run the Dialog with the new message Activity.
-                await this.dialog.run(context, this.dialogState, type, payload);
+            // Run the Dialog with the new message Activity.
+            await this.dialog.run(context, this.dialogState, next);
 
-                // By calling next() you ensure that the next BotHandler is run.
-                await next();
-            });
+            // By calling next() you ensure that the next BotHandler is run.
+            await next();
         });
 
         this.onDialog(async (context, next) => {

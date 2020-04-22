@@ -83,19 +83,20 @@ const serverUrl = server.listen(process.env.port || process.env.PORT || 3978, fu
 });
 
 
-// Create the main dialog.
-const bookingDialog = new BookingDialog(BOOKING_DIALOG);
-const dialog = new MainDialog(luisRecognizer, bookingDialog);
-
 // Set up OneReach integration
 const callbackPath = '/onereach/callback';
-const or = new OneReach(conversationState, serverUrl + callbackPath, dialog);
+const or = new OneReach(conversationState, serverUrl + callbackPath);
 server.post(callbackPath, (req, res) => {
     console.log('OR bypass callback request', req);
     res.send(200);
 });
 
-const bot = new DialogAndWelcomeBot(conversationState, userState, dialog, or);
+// Create the main dialog.
+const bookingDialog = new BookingDialog(BOOKING_DIALOG);
+const dialog = new MainDialog(luisRecognizer, bookingDialog, or);
+
+
+const bot = new DialogAndWelcomeBot(conversationState, userState, dialog);
 
 // Listen for incoming activities and route them to your bot main dialog.
 server.post('/api/messages', (req, res) => {

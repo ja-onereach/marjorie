@@ -6,9 +6,7 @@ const uuid = require('uuid/v4');
 const _ = require('lodash');
 
 class OneReach {
-    constructor(dialogState, callbackUrl, dialog) {
-        this._dialog = dialog;
-        this._dialog.or = this;
+    constructor(dialogState, callbackUrl) {
         this._state = dialogState;
         this._callbackUrl = callbackUrl;
         this._callbacks = dialogState.createProperty('OneReachCallbacks');
@@ -35,8 +33,11 @@ class OneReach {
         });
     }
 
-    async bypass(context, next, type, tags, endYieldFunc) {
-        // console.log('or.bypass', { type, context });
+    async bypass(dialogContext, type, tags, endYieldFunc, next) {
+        next = next || dialogContext.next;
+        endYieldFunc = endYieldFunc || next;
+
+        console.log('or.bypass', { type, dialogContext });
         const req = (body, uri) => {
             return request.post({
                 uri: uri || this._adapterUrl,
@@ -62,25 +63,24 @@ class OneReach {
                 // associate existing context with a callback ID to allow OR bot to close the conversation later
                 const yieldResp = await req({
                     type: 'yield',
-                    activity: _.get(context, '_activity'),
+                    activity: _.get(dialogContext.context, '_activity'),
                     bsCallback: { id: callbackId, url: this._serverUrl },
                     tags
                 });
                 if (yieldResp && yieldResp.doYield) { // OR bot is taking control, oriented toward Request Input in conversation flows
-                    this.pushCallback(callbackId, context, next);
+                    this.pushCallback(callbackId, dialogContext.context, next);
                     return this.yieldResponse(yieldResp);
                 } else if (yieldResp && yieldResp.newActivities) { // oriented to Send Message on its own
                     // handle new bot message(s) from OR bot
                     const lastActivity = yieldResp.newActivities.pop();
                     var sentMessageDetails;
                     _.forEach(yieldResp.newActivities, async activity => {
-                        await context.sendActivity(activity);
+                        await dialogContext.context.sendActivity(activity);
                     });
-                    sentMessageDetails = await context.sendActivity(lastActivity);
+                    sentMessageDetails = await dialogContext.context.sendActivity(lastActivity);
                     this.returnMessageDetails(sentMessageDetails, yieldResp.msgCallbackUrl);
                     if (yieldResp.resetConversation) {
-                        const dialogState = this._state.createProperty('OneReachState');
-                        return await this._dialog.run(context, dialogState, type="reset");
+                        return await dialogContext.replaceDialog('MainDialog', { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you??' });
                     } else {
                         return await next()
                     }
@@ -98,7 +98,7 @@ class OneReach {
                 try {
                     const nluResp = await req({
                         type,
-                        activity: _.get(context, '_activity'),
+                        activity: _.get(dialogContext.context, '_activity'),
                         bsCallback: { id: callbackId, url: this._serverUrl },
                         tags
                     }, this.nluFLowUrl);
@@ -108,16 +108,15 @@ class OneReach {
                         var sentMessageDetails;
                         try {
                             _.forEach(nluResp.newActivities, async activity => {
-                                await context.sendActivity(activity);
+                                await dialogContext.context.sendActivity(activity);
                             });
-                            sentMessageDetails = await context.sendActivity(lastActivity);
+                            sentMessageDetails = await dialogContext.context.sendActivity(lastActivity);
                         } catch (e) {
-                            sentMessageDetails = await context.sendActivity(lastActivity.text || 'no result');
+                            sentMessageDetails = await dialogContext.context.sendActivity(lastActivity.text || 'no result');
                         }
                         this.returnMessageDetails(sentMessageDetails, nluResp.msgCallbackUrl);
                         if (nluResp.resetConversation) {
-                            const dialogState = this._state.createProperty('OneReachState');
-                            return await this._dialog.run(context, dialogState, type="reset");
+                            return await dialogContext.replaceDialog('MainDialog', { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you??' });
                         } else {
                             return await next()
                         }
@@ -130,9 +129,8 @@ class OneReach {
                     return await endYieldFunc();
                 }
                 break;
-            default:
-                return endYieldFunc ? endYieldFunc() : next();
         }
+        return await endYieldFunc()
     }
 
     async returnMessageDetails(sentMessage, responseUrl) {

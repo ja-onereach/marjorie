@@ -9,16 +9,20 @@ const _ = require('lodash');
 // const or = require('../oneReach');
 
 const MAIN_WATERFALL_DIALOG = 'mainWaterfallDialog';
+const MAIN_DIALOG = 'MainDialog';
 
 class MainDialog extends ComponentDialog {
-    constructor(luisRecognizer, bookingDialog) {
-        super('MainDialog');
+    constructor(luisRecognizer, bookingDialog, or) {
+        super(MAIN_DIALOG);
 
         if (!luisRecognizer) throw new Error('[MainDialog]: Missing parameter \'luisRecognizer\' is required');
         this.luisRecognizer = luisRecognizer;
 
         if (!bookingDialog) throw new Error('[MainDialog]: Missing parameter \'bookingDialog\' is required');
-
+        
+        if (!or) throw new Error('[MainDialog]: Missing parameter \'or\' is required');
+        this.or = or;
+        
         // Define the main dialog and its related components.
         // This is a sample "book a flight" dialog.
         this.addDialog(new TextPrompt('TextPrompt'))
@@ -38,25 +42,29 @@ class MainDialog extends ComponentDialog {
      * @param {*} turnContext
      * @param {*} accessor
      */
-    async run(turnContext, accessor, type, payload) {
+    async run(turnContext, accessor, next) {
         const dialogSet = new DialogSet(accessor);
         dialogSet.add(this);
         const dialogContext = await dialogSet.createContext(turnContext);
+        
+        const mainHanler = async () => {
+            console.log('[Before RUN]')
+            const results = await dialogContext.continueDialog();
+            console.log('[ RUN ]', { turnContext, results, dialogContext })
 
-        if (type === 'reset') return await dialogContext.replaceDialog(this.id, { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you??' });
-        // console.log('[Before RUN]')
-        const results = await dialogContext.continueDialog();
-        if (!type && _.toLower(turnContext._activity.text) === "reset") {
-            results.status = DialogTurnStatus.empty;
-            type = 'reset';
+            if (_.toLower(turnContext._activity.text) === "reset") {
+                results.status = DialogTurnStatus.empty;
+                return await dialogContext.replaceDialog(MAIN_DIALOG, { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you??' });
+            }
+            if (results.status === DialogTurnStatus.empty) {
+                await dialogContext.beginDialog(MAIN_DIALOG);
+            }
+            console.log('[ RUN After ]', { turnContext, results, dialogContext })
         }
-        // console.log('[ RUN ]', { turnContext, results, dialogContext })
-        if (type === 'reset') return await dialogContext.replaceDialog(this.id, { restartMsg: 'Bot Service is back in control, and starting over. What can I do for you??' });
-        if (results.status === DialogTurnStatus.empty || type==="reset") {
-            if (type === "reset") await dialogContext.cancelAllDialogs(true);
-            await dialogContext.beginDialog(this.id);
-            // console.log('[ RUN After ]', { turnContext, results, dialogContext })
-        }
+
+        return await this.or.bypass(dialogContext, 'tryYield', ['dialogBot.onMessage'], mainHanler, next);
+
+        // return await mainHanler()
     }
 
     /**
@@ -65,7 +73,7 @@ class MainDialog extends ComponentDialog {
      * Note that the sample LUIS model will only recognize Paris, Berlin, New York and London as airport cities.
      */
     async introStep(stepContext) {
-        // console.log('INTRO STEP')
+        console.log('INTRO STEP', stepContext)
         if (!this.luisRecognizer.isConfigured) {
             const messageText = 'NOTE: LUIS is not configured. To enable all capabilities, add `LuisAppId`, `LuisAPIKey` and `LuisAPIHostName` to the .env file.';
             await stepContext.context.sendActivity(messageText, null, InputHints.IgnoringInput);
@@ -82,7 +90,7 @@ class MainDialog extends ComponentDialog {
      * Then, it hands off to the bookingDialog child dialog to collect any remaining details.
      */
     async actStep(stepContext) {
-        // console.log('ACT STEP')
+        console.log('ACT STEP')
         const bookingDetails = {};
 
         if (!this.luisRecognizer.isConfigured) {
@@ -120,7 +128,7 @@ class MainDialog extends ComponentDialog {
 
         default: {
             // Catch all for unhandled intents
-            await this.or.bypass(stepContext.context, stepContext.next, "nlu-failover", ["mainDialog.actStep"], async () => {
+            await this.or.bypass(stepContext, "nlu-failover", ["mainDialog.actStep"], async () => {
                 const didntUnderstandMessageText = `Sorry, I didn't get that. Please try asking in a different way (intent was ${ LuisRecognizer.topIntent(luisResult) })`;
                 await stepContext.context.sendActivity(didntUnderstandMessageText, didntUnderstandMessageText, InputHints.IgnoringInput);
             })
@@ -155,7 +163,7 @@ class MainDialog extends ComponentDialog {
      * It wraps up the sample "book a flight" interaction with a simple confirmation.
      */
     async finalStep(stepContext) {
-        // console.log('FINAL STEP')
+        console.log('FINAL STEP')
         // If the child dialog ("bookingDialog") was cancelled or the user failed to confirm, the Result here will be null.
         if (stepContext.result) {
             const result = stepContext.result;
