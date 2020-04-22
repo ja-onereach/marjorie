@@ -5,8 +5,8 @@ const { TimexProperty } = require('@microsoft/recognizers-text-data-types-timex-
 const { MessageFactory, InputHints } = require('botbuilder');
 const { LuisRecognizer } = require('botbuilder-ai');
 const { ComponentDialog, DialogSet, DialogTurnStatus, TextPrompt, WaterfallDialog } = require('botbuilder-dialogs');
-const _ = require('lodash');
-const or = require('../oneReach');
+// const _ = require('lodash');
+// const or = require('../oneReach');
 
 const MAIN_WATERFALL_DIALOG = 'mainWaterfallDialog';
 
@@ -39,24 +39,13 @@ class MainDialog extends ComponentDialog {
      * @param {*} accessor
      */
     async run(turnContext, accessor) {
-        console.log('RUN', turnContext);
+        // console.log('RUN', turnContext);
         const dialogSet = new DialogSet(accessor);
         dialogSet.add(this);
         const dialogContext = await dialogSet.createContext(turnContext);
-        // CHECK BYPASS ON INITIAL UTTERANCE
-        console.log('TURN CONTEXT', turnContext);
-        let doBypass = false;
-        if (_.get(turnContext, '_activity.channelId') !== 'directline') {
-            doBypass = await or.bypass(turnContext._activity, 'actStep');
-            console.log('doBypass returned', doBypass);
-        }
-        if (!doBypass) {
-            // RESET HANDLER
-            console.log('turnContext._activity', turnContext._activity);
-            const results = (_.get(turnContext, '_activity.text') === 'RESET') ? { status: DialogTurnStatus.empty } : await dialogContext.continueDialog();
-            if (results.status === DialogTurnStatus.empty) {
-                await dialogContext.beginDialog(this.id);
-            }
+        const results = await dialogContext.continueDialog();
+        if (results.status === DialogTurnStatus.empty) {
+            await dialogContext.beginDialog(this.id);
         }
     }
 

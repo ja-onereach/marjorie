@@ -6,6 +6,7 @@
 // Import required packages
 const path = require('path');
 const restify = require('restify');
+const OneReach = require('./oneReach');
 
 // Import required bot services.
 // See https://aka.ms/bot-services to learn more about the different parts of a bot.
@@ -72,18 +73,27 @@ const luisConfig = { applicationId: LuisAppId, endpointKey: LuisAPIKey, endpoint
 
 const luisRecognizer = new FlightBookingRecognizer(luisConfig);
 
-// Create the main dialog.
-const bookingDialog = new BookingDialog(BOOKING_DIALOG);
-const dialog = new MainDialog(luisRecognizer, bookingDialog);
-const bot = new DialogAndWelcomeBot(conversationState, userState, dialog);
-
 // Create HTTP server
 const server = restify.createServer();
-server.listen(process.env.port || process.env.PORT || 3978, function() {
+const serverUrl = server.listen(process.env.port || process.env.PORT || 3978, function() {
     console.log(`\n${ server.name } listening to ${ server.url }`);
     console.log('\nGet Bot Framework Emulator: https://aka.ms/botframework-emulator');
     console.log('\nTo talk to your bot, open the emulator select "Open Bot"');
+    return server.url;
 });
+
+// Set up OneReach integration
+const callbackPath = '/onereach/callback';
+const or = new OneReach(conversationState, serverUrl + callbackPath);
+server.post(callbackPath, (req, res) => {
+    console.log('OR bypass callback request', req);
+    res.send(200);
+});
+
+// Create the main dialog.
+const bookingDialog = new BookingDialog(BOOKING_DIALOG);
+const dialog = new MainDialog(luisRecognizer, bookingDialog);
+const bot = new DialogAndWelcomeBot(conversationState, userState, dialog, or);
 
 // Listen for incoming activities and route them to your bot main dialog.
 server.post('/api/messages', (req, res) => {

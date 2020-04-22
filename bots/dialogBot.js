@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 const { ActivityHandler } = require('botbuilder');
-const or = require('../oneReach');
 
 class DialogBot extends ActivityHandler {
     /**
@@ -11,7 +10,7 @@ class DialogBot extends ActivityHandler {
      * @param {UserState} userState
      * @param {Dialog} dialog
      */
-    constructor(conversationState, userState, dialog) {
+    constructor(conversationState, userState, dialog, or) {
         super();
         if (!conversationState) throw new Error('[DialogBot]: Missing parameter. conversationState is required');
         if (!userState) throw new Error('[DialogBot]: Missing parameter. userState is required');
@@ -20,30 +19,33 @@ class DialogBot extends ActivityHandler {
         this.conversationState = conversationState;
         this.userState = userState;
         this.dialog = dialog;
-        this.dialogState = this.conversationState.createProperty('DialogState');
+        this.dialogState = conversationState.createProperty('OneReachState');
+        this.or = or;
+
+        this.onEvent(async (context, next) => {
+            console.log('onEvent', context._activity);
+            await next();
+        });
 
         this.onMessage(async (context, next) => {
-            console.log('Running dialog with Message Activity.');
-            or.dispatch(context._activity, 'onMessage');
-            // Run the Dialog with the new message Activity.
-            await this.dialog.run(context, this.dialogState);
+            await or.bypass(context, next, 'tryYield', ['dialogBot.onMessage'], async () => {
+                // Run the Dialog with the new message Activity.
+                await this.dialog.run(context, this.dialogState);
 
-            // By calling next() you ensure that the next BotHandler is run.
-            await next();
+                // By calling next() you ensure that the next BotHandler is run.
+                await next();
+            });
         });
 
         this.onDialog(async (context, next) => {
             // Save any state changes. The load happened during the execution of the Dialog.
-            or.dispatch(context._activity, 'onDialog');
+            // console.log('onDialog', context._activity);
+            // or.dispatch(context._activity, 'onDialog');
             await this.conversationState.saveChanges(context, false);
             await this.userState.saveChanges(context, false);
 
             // By calling next() you ensure that the next BotHandler is run.
             await next();
-        });
-
-        this.onEvent(async (context, next) => {
-            or.dispatch(context._activity, 'onEvent');
         });
     }
 }
