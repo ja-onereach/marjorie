@@ -34,6 +34,7 @@ class BookingDialog extends CancelAndHelpDialog {
      * If a destination city has not been provided, prompt for one.
      */
     async destinationStep(stepContext) {
+        console.log('DESTINATION STEP')
         const bookingDetails = stepContext.options;
 
         if (!bookingDetails.destination) {
@@ -48,6 +49,7 @@ class BookingDialog extends CancelAndHelpDialog {
      * If an origin city has not been provided, prompt for one.
      */
     async originStep(stepContext) {
+        console.log('ORIGIN STEP')
         const bookingDetails = stepContext.options;
 
         // Capture the response to the previous step's prompt
@@ -65,6 +67,7 @@ class BookingDialog extends CancelAndHelpDialog {
      * This will use the DATE_RESOLVER_DIALOG.
      */
     async travelDateStep(stepContext) {
+        console.log('TRAVEL STEP')
         const bookingDetails = stepContext.options;
 
         // Capture the results of the previous step
